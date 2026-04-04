@@ -204,112 +204,117 @@ export namespace Config {
 
   async function loadCommand(dir: string) {
     const result: Record<string, Command> = {}
-    for (const item of await Glob.scan("{command,commands}/**/*.md", {
-      cwd: dir,
-      absolute: true,
-      dot: true,
-      symlink: true,
-    })) {
-      const md = await ConfigMarkdown.parse(item).catch(async (err) => {
-        const message = ConfigMarkdown.FrontmatterError.isInstance(err)
-          ? err.data.message
-          : `Failed to parse command ${item}`
-        const { Session } = await import("@/session")
-        Bus.publish(Session.Event.Error, { error: new NamedError.Unknown({ message }).toObject() })
-        log.error("failed to load command", { command: item, err })
-        return undefined
-      })
-      if (!md) continue
+    for (const subdir of ["command", "commands"]) {
+      for (const item of await Glob.scan(`${subdir}/**/*.md`, {
+        cwd: dir,
+        absolute: true,
+        dot: true,
+        symlink: true,
+      })) {
+        const md = await ConfigMarkdown.parse(item).catch(async (err) => {
+          const message = ConfigMarkdown.FrontmatterError.isInstance(err)
+            ? err.data.message
+            : `Failed to parse command ${item}`
+          const { Session } = await import("@/session")
+          Bus.publish(Session.Event.Error, { error: new NamedError.Unknown({ message }).toObject() })
+          log.error("failed to load command", { command: item, err })
+          return undefined
+        })
+        if (!md) continue
 
-      const patterns = ["/.opencode/command/", "/.opencode/commands/", "/command/", "/commands/"]
-      const file = rel(item, patterns) ?? path.basename(item)
-      const name = trim(file)
+        const patterns = ["/.opencode/command/", "/.opencode/commands/", "/command/", "/commands/"]
+        const file = rel(item, patterns) ?? path.basename(item)
+        const name = trim(file)
 
-      const config = {
-        name,
-        ...md.data,
-        template: md.content.trim(),
+        const config = {
+          name,
+          ...md.data,
+          template: md.content.trim(),
+        }
+        const parsed = Command.safeParse(config)
+        if (parsed.success) {
+          result[config.name] = parsed.data
+          continue
+        }
+        throw new InvalidError({ path: item, issues: parsed.error.issues }, { cause: parsed.error })
       }
-      const parsed = Command.safeParse(config)
-      if (parsed.success) {
-        result[config.name] = parsed.data
-        continue
-      }
-      throw new InvalidError({ path: item, issues: parsed.error.issues }, { cause: parsed.error })
     }
     return result
   }
 
   async function loadAgent(dir: string) {
     const result: Record<string, Agent> = {}
+    for (const subdir of ["agent", "agents"]) {
+      for (const item of await Glob.scan(`${subdir}/**/*.md`, {
+        cwd: dir,
+        absolute: true,
+        dot: true,
+        symlink: true,
+      })) {
+        const md = await ConfigMarkdown.parse(item).catch(async (err) => {
+          const message = ConfigMarkdown.FrontmatterError.isInstance(err)
+            ? err.data.message
+            : `Failed to parse agent ${item}`
+          const { Session } = await import("@/session")
+          Bus.publish(Session.Event.Error, { error: new NamedError.Unknown({ message }).toObject() })
+          log.error("failed to load agent", { agent: item, err })
+          return undefined
+        })
+        if (!md) continue
 
-    for (const item of await Glob.scan("{agent,agents}/**/*.md", {
-      cwd: dir,
-      absolute: true,
-      dot: true,
-      symlink: true,
-    })) {
-      const md = await ConfigMarkdown.parse(item).catch(async (err) => {
-        const message = ConfigMarkdown.FrontmatterError.isInstance(err)
-          ? err.data.message
-          : `Failed to parse agent ${item}`
-        const { Session } = await import("@/session")
-        Bus.publish(Session.Event.Error, { error: new NamedError.Unknown({ message }).toObject() })
-        log.error("failed to load agent", { agent: item, err })
-        return undefined
-      })
-      if (!md) continue
+        const patterns = ["/.opencode/agent/", "/.opencode/agents/", "/agent/", "/agents/"]
+        const file = rel(item, patterns) ?? path.basename(item)
+        const agentName = trim(file)
 
-      const patterns = ["/.opencode/agent/", "/.opencode/agents/", "/agent/", "/agents/"]
-      const file = rel(item, patterns) ?? path.basename(item)
-      const agentName = trim(file)
-
-      const config = {
-        name: agentName,
-        ...md.data,
-        prompt: md.content.trim(),
+        const config = {
+          name: agentName,
+          ...md.data,
+          prompt: md.content.trim(),
+        }
+        const parsed = Agent.safeParse(config)
+        if (parsed.success) {
+          result[config.name] = parsed.data
+          continue
+        }
+        throw new InvalidError({ path: item, issues: parsed.error.issues }, { cause: parsed.error })
       }
-      const parsed = Agent.safeParse(config)
-      if (parsed.success) {
-        result[config.name] = parsed.data
-        continue
-      }
-      throw new InvalidError({ path: item, issues: parsed.error.issues }, { cause: parsed.error })
     }
     return result
   }
 
   async function loadMode(dir: string) {
     const result: Record<string, Agent> = {}
-    for (const item of await Glob.scan("{mode,modes}/*.md", {
-      cwd: dir,
-      absolute: true,
-      dot: true,
-      symlink: true,
-    })) {
-      const md = await ConfigMarkdown.parse(item).catch(async (err) => {
-        const message = ConfigMarkdown.FrontmatterError.isInstance(err)
-          ? err.data.message
-          : `Failed to parse mode ${item}`
-        const { Session } = await import("@/session")
-        Bus.publish(Session.Event.Error, { error: new NamedError.Unknown({ message }).toObject() })
-        log.error("failed to load mode", { mode: item, err })
-        return undefined
-      })
-      if (!md) continue
+    for (const subdir of ["mode", "modes"]) {
+      for (const item of await Glob.scan(`${subdir}/*.md`, {
+        cwd: dir,
+        absolute: true,
+        dot: true,
+        symlink: true,
+      })) {
+        const md = await ConfigMarkdown.parse(item).catch(async (err) => {
+          const message = ConfigMarkdown.FrontmatterError.isInstance(err)
+            ? err.data.message
+            : `Failed to parse mode ${item}`
+          const { Session } = await import("@/session")
+          Bus.publish(Session.Event.Error, { error: new NamedError.Unknown({ message }).toObject() })
+          log.error("failed to load mode", { mode: item, err })
+          return undefined
+        })
+        if (!md) continue
 
-      const config = {
-        name: path.basename(item, ".md"),
-        ...md.data,
-        prompt: md.content.trim(),
-      }
-      const parsed = Agent.safeParse(config)
-      if (parsed.success) {
-        result[config.name] = {
-          ...parsed.data,
-          mode: "primary" as const,
+        const config = {
+          name: path.basename(item, ".md"),
+          ...md.data,
+          prompt: md.content.trim(),
         }
-        continue
+        const parsed = Agent.safeParse(config)
+        if (parsed.success) {
+          result[config.name] = {
+            ...parsed.data,
+            mode: "primary" as const,
+          }
+          continue
+        }
       }
     }
     return result
@@ -317,14 +322,15 @@ export namespace Config {
 
   async function loadPlugin(dir: string) {
     const plugins: PluginSpec[] = []
-
-    for (const item of await Glob.scan("{plugin,plugins}/*.{ts,js}", {
-      cwd: dir,
-      absolute: true,
-      dot: true,
-      symlink: true,
-    })) {
-      plugins.push(pathToFileURL(item).href)
+    for (const subdir of ["plugin", "plugins"]) {
+      for (const item of await Glob.scan(`${subdir}/*.{ts,js}`, {
+        cwd: dir,
+        absolute: true,
+        dot: true,
+        symlink: true,
+      })) {
+        plugins.push(pathToFileURL(item).href)
+      }
     }
     return plugins
   }

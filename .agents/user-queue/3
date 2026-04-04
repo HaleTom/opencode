@@ -1,0 +1,1 @@
+Repair or replace the current checkout with a valid git worktree so git diff/status/show can run. Status: Done.

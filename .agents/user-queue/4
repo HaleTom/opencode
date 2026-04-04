@@ -1,1 +1,0 @@
-Allow branch push by enabling SSH host trust in this environment or switching git push protocol to HTTPS credential flow. Status: Blocked.

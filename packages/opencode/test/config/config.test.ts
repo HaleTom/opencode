@@ -702,6 +702,40 @@ Nested command template`,
   })
 })
 
+test("loads commands from project commands directory when opencode.json exists", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Filesystem.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+        }),
+      )
+
+      const commands = path.join(dir, "commands")
+      await fs.mkdir(commands, { recursive: true })
+      await Filesystem.write(
+        path.join(commands, "test.md"),
+        `---
+description: Test command
+---
+Command from project root`,
+      )
+    },
+  })
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await Config.get()
+      expect(config.command?.["test"]).toEqual({
+        description: "Test command",
+        template: "Command from project root",
+      })
+    },
+  })
+})
+
 test("updates config and writes to file", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({

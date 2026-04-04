@@ -1314,11 +1314,14 @@ export namespace Config {
             log.debug("loaded custom config", { path: Flag.OPENCODE_CONFIG })
           }
 
+          const projectDirs: string[] = []
+
           if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
             for (const file of yield* Effect.promise(() =>
               ConfigPaths.projectFiles("opencode", ctx.directory, ctx.worktree),
             )) {
               merge(file, yield* loadFile(file), "local")
+              projectDirs.push(path.dirname(file))
             }
           }
 
@@ -1333,6 +1336,10 @@ export namespace Config {
           }
 
           const deps: Promise<void>[] = []
+
+          for (const dir of unique(projectDirs)) {
+            result.command = mergeDeep(result.command ?? {}, yield* Effect.promise(() => loadCommand(dir)))
+          }
 
           for (const dir of unique(directories)) {
             if (dir.endsWith(".opencode") || dir === Flag.OPENCODE_CONFIG_DIR) {

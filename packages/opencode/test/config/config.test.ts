@@ -779,7 +779,7 @@ From commands dir`,
   })
 })
 
-test("prefers .opencode commands over project commands on collision", async () => {
+test("prefers OPENCODE_CONFIG_DIR commands over project commands on collision", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {
       await Filesystem.write(
@@ -789,8 +789,9 @@ test("prefers .opencode commands over project commands on collision", async () =
         }),
       )
 
+      const cfg = path.join(dir, "cfg")
       await fs.mkdir(path.join(dir, "commands"), { recursive: true })
-      await fs.mkdir(path.join(dir, ".opencode", "commands"), { recursive: true })
+      await fs.mkdir(path.join(cfg, "commands"), { recursive: true })
 
       await Filesystem.write(
         path.join(dir, "commands", "dup.md"),
@@ -801,25 +802,33 @@ From project commands`,
       )
 
       await Filesystem.write(
-        path.join(dir, ".opencode", "commands", "dup.md"),
+        path.join(cfg, "commands", "dup.md"),
         `---
 description: Test command
 ---
-From dot opencode commands`,
+From OPENCODE_CONFIG_DIR commands`,
       )
     },
   })
 
-  await Instance.provide({
-    directory: tmp.path,
-    fn: async () => {
-      const config = await Config.get()
-      expect(config.command?.["dup"]).toEqual({
-        description: "Test command",
-        template: "From dot opencode commands",
-      })
-    },
-  })
+  const prev = process.env.OPENCODE_CONFIG_DIR
+  process.env.OPENCODE_CONFIG_DIR = path.join(tmp.path, "cfg")
+
+  try {
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const config = await Config.get()
+        expect(config.command?.["dup"]).toEqual({
+          description: "Test command",
+          template: "From OPENCODE_CONFIG_DIR commands",
+        })
+      },
+    })
+  } finally {
+    if (prev === undefined) delete process.env.OPENCODE_CONFIG_DIR
+    else process.env.OPENCODE_CONFIG_DIR = prev
+  }
 })
 
 test("updates config and writes to file", async () => {

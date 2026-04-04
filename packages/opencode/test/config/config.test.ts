@@ -736,6 +736,92 @@ Command from project root`,
   })
 })
 
+test("prefers commands directory over command directory for duplicate names", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Filesystem.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+        }),
+      )
+
+      await fs.mkdir(path.join(dir, "command"), { recursive: true })
+      await fs.mkdir(path.join(dir, "commands"), { recursive: true })
+
+      await Filesystem.write(
+        path.join(dir, "command", "dup.md"),
+        `---
+description: Test command
+---
+From command dir`,
+      )
+
+      await Filesystem.write(
+        path.join(dir, "commands", "dup.md"),
+        `---
+description: Test command
+---
+From commands dir`,
+      )
+    },
+  })
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await Config.get()
+      expect(config.command?.["dup"]).toEqual({
+        description: "Test command",
+        template: "From commands dir",
+      })
+    },
+  })
+})
+
+test("prefers .opencode commands over project commands on collision", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Filesystem.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+        }),
+      )
+
+      await fs.mkdir(path.join(dir, "commands"), { recursive: true })
+      await fs.mkdir(path.join(dir, ".opencode", "commands"), { recursive: true })
+
+      await Filesystem.write(
+        path.join(dir, "commands", "dup.md"),
+        `---
+description: Test command
+---
+From project commands`,
+      )
+
+      await Filesystem.write(
+        path.join(dir, ".opencode", "commands", "dup.md"),
+        `---
+description: Test command
+---
+From dot opencode commands`,
+      )
+    },
+  })
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await Config.get()
+      expect(config.command?.["dup"]).toEqual({
+        description: "Test command",
+        template: "From dot opencode commands",
+      })
+    },
+  })
+})
+
 test("updates config and writes to file", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({

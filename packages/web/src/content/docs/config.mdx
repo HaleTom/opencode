@@ -55,7 +55,7 @@ Config sources are loaded in this order (later sources override earlier ones):
 This means project configs can override global defaults, and global configs can override remote organizational defaults. Managed settings override everything.
 
 :::note
-The `.opencode` and `~/.config/opencode` directories use **plural names** for subdirectories: `agents/`, `commands/`, `modes/`, `plugins/`, `skills/`, `tools/`, and `themes/`. Singular names (e.g., `agent/`) are also supported for backwards compatibility.
+The `.opencode` and `~/.config/opencode` directories use **plural names** for subdirectories: `agents/`, `commands/`, `modes/`, `plugins/`, `skills/`, `tools/`, and `themes/`. Legacy singular names (for example, `agent/`) are still supported. If the same-named item exists in both singular and plural locations in the same source directory, the plural location wins.
 :::
 
 ---

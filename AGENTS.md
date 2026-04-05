@@ -4,6 +4,19 @@
 - Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
 - Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety/irreversibility.
 
+## Git Worktree Gotchas
+
+- Use `git worktree add` (not `create`) — older git versions only have `add`.
+- Worktree branch refs are shared across all worktrees. `git update-ref` in one affects all.
+- Worktree directories can become "prunable zombies" — `git worktree list` shows them but the directory doesn't exist. Always verify with `stat` or `ls -d`.
+- `git update-ref` does NOT update a worktree's HEAD. The worktree stays on the old branch silently. Use `git symbolic-ref HEAD refs/heads/<branch>` to fix, then `git reset --hard`.
+- After manipulating refs, run `git checkout HEAD -- .` in the worktree to sync working files.
+
+## Execution
+
+- `bun test` in a fresh worktree fails with `preload not found "@opentui/solid/preload"` until `bun install` is run.
+- HTTPS git push fails with `could not read Username` — use SSH or pre-authenticated remotes.
+
 ## Style Guide
 
 ### General Principles

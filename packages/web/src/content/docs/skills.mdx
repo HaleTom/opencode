@@ -29,6 +29,19 @@ It loads any matching `skills/*/SKILL.md` in `.opencode/` and any matching `.cla
 
 Global definitions are also loaded from `~/.config/opencode/skills/*/SKILL.md`, `~/.claude/skills/*/SKILL.md`, and `~/.agents/skills/*/SKILL.md`.
 
+If duplicate skill names are found, OpenCode logs a duplicate warning and keeps the last-loaded definition.
+
+### Duplicate precedence
+
+When the same skill name exists in multiple locations, later sources override earlier ones. In practice:
+
+1. External compatibility dirs (`.claude/`, `.agents/`)
+2. OpenCode config dirs (`.opencode/`, `~/.config/opencode/`, `OPENCODE_CONFIG_DIR`)
+3. `skills.paths` entries (in listed order)
+4. `skills.urls` entries (in listed order)
+
+Within one OpenCode config directory, if the same-named skill exists in both legacy singular `skill/` and plural `skills/`, the plural location wins.
+
 ---
 
 ## Write frontmatter

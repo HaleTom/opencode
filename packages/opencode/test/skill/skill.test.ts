@@ -402,6 +402,134 @@ test("duplicate skill: .opencode overrides .claude", async () => {
   })
 })
 
+test("duplicate skill: .opencode/skills overrides .opencode/skill", async () => {
+  await using tmp = await tmpdir({
+    git: true,
+    init: async (dir) => {
+      await createSkill(path.join(dir, ".opencode", "skill", "dup", "SKILL.md"), "dup", "from-singular")
+      await createSkill(path.join(dir, ".opencode", "skills", "dup", "SKILL.md"), "dup", "from-plural")
+    },
+  })
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const skill = await Skill.get("dup")
+      expect(skill?.description).toBe("from-plural")
+      expect(skill?.location).toContain(path.join(".opencode", "skills", "dup", "SKILL.md"))
+    },
+  })
+})
+
+test("duplicate skill: project .claude overrides global .claude", async () => {
+  await using tmp = await tmpdir({
+    git: true,
+    init: async (dir) => {
+      const home = path.join(dir, "home")
+      await createSkill(path.join(home, ".claude", "skills", "dup", "SKILL.md"), "dup", "from-global")
+      await createSkill(path.join(dir, ".claude", "skills", "dup", "SKILL.md"), "dup", "from-project")
+    },
+  })
+
+  const prev = process.env.OPENCODE_TEST_HOME
+  process.env.OPENCODE_TEST_HOME = path.join(tmp.path, "home")
+  try {
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const skill = await Skill.get("dup")
+        expect(skill?.description).toBe("from-project")
+        expect(skill?.location).toContain(path.join(tmp.path, ".claude", "skills", "dup", "SKILL.md"))
+      },
+    })
+  } finally {
+    if (prev === undefined) delete process.env.OPENCODE_TEST_HOME
+    else process.env.OPENCODE_TEST_HOME = prev
+  }
+})
+
+test("duplicate skill: project .agents overrides global .agents", async () => {
+  await using tmp = await tmpdir({
+    git: true,
+    init: async (dir) => {
+      const home = path.join(dir, "home")
+      await createSkill(path.join(home, ".agents", "skills", "dup", "SKILL.md"), "dup", "from-global")
+      await createSkill(path.join(dir, ".agents", "skills", "dup", "SKILL.md"), "dup", "from-project")
+    },
+  })
+
+  const prev = process.env.OPENCODE_TEST_HOME
+  process.env.OPENCODE_TEST_HOME = path.join(tmp.path, "home")
+  try {
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const skill = await Skill.get("dup")
+        expect(skill?.description).toBe("from-project")
+        expect(skill?.location).toContain(path.join(tmp.path, ".agents", "skills", "dup", "SKILL.md"))
+      },
+    })
+  } finally {
+    if (prev === undefined) delete process.env.OPENCODE_TEST_HOME
+    else process.env.OPENCODE_TEST_HOME = prev
+  }
+})
+
+test("duplicate skill: OPENCODE_CONFIG_DIR overrides .opencode", async () => {
+  await using tmp = await tmpdir({
+    git: true,
+    init: async (dir) => {
+      const cfg = path.join(dir, "cfg")
+      await createSkill(path.join(dir, ".opencode", "skills", "dup", "SKILL.md"), "dup", "from-opencode")
+      await createSkill(path.join(cfg, "skills", "dup", "SKILL.md"), "dup", "from-config-dir")
+    },
+  })
+
+  const prev = process.env.OPENCODE_CONFIG_DIR
+  process.env.OPENCODE_CONFIG_DIR = path.join(tmp.path, "cfg")
+  try {
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const skill = await Skill.get("dup")
+        expect(skill?.description).toBe("from-config-dir")
+        expect(skill?.location).toContain(path.join(tmp.path, "cfg", "skills", "dup", "SKILL.md"))
+      },
+    })
+  } finally {
+    if (prev === undefined) delete process.env.OPENCODE_CONFIG_DIR
+    else process.env.OPENCODE_CONFIG_DIR = prev
+  }
+})
+
+test("duplicate skill: skills.paths overrides config directories", async () => {
+  await using tmp = await tmpdir({
+    git: true,
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          skills: {
+            paths: ["./extra-skills"],
+          },
+        }),
+      )
+      await createSkill(path.join(dir, ".opencode", "skills", "dup", "SKILL.md"), "dup", "from-opencode")
+      await createSkill(path.join(dir, "extra-skills", "dup", "SKILL.md"), "dup", "from-path")
+    },
+  })
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const skill = await Skill.get("dup")
+      expect(skill?.description).toBe("from-path")
+      expect(skill?.location).toContain(path.join("extra-skills", "dup", "SKILL.md"))
+    },
+  })
+})
+
 test("duplicate skill logs warning", async () => {
   await using tmp = await tmpdir({
     git: true,
@@ -425,7 +553,13 @@ test("duplicate skill logs warning", async () => {
 
   await Bun.sleep(20)
   const next = await fs.readFile(file, "utf8").catch(() => "")
-  expect(next.slice(prev.length)).toContain("duplicate skill name")
+  const tail = next.slice(prev.length)
+  expect(tail).toContain("duplicate skill name")
+  expect(tail).toContain("shadowed=")
+  expect(tail).toContain("active=")
+  expect(tail).toContain(path.join(".claude", "skills", "dup", "SKILL.md"))
+  expect(tail).toContain(path.join(".agents", "skills", "dup", "SKILL.md"))
+  expect(tail).toContain(path.join(".opencode", "skills", "dup", "SKILL.md"))
 })
 
 test("properly resolves directories that skills live in", async () => {

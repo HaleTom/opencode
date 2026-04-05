@@ -89,8 +89,8 @@ export namespace Skill {
     if (state.skills[parsed.data.name]) {
       log.warn("duplicate skill name", {
         name: parsed.data.name,
-        existing: state.skills[parsed.data.name].location,
-        duplicate: match,
+        shadowed: state.skills[parsed.data.name].location,
+        active: match,
       })
     }
 

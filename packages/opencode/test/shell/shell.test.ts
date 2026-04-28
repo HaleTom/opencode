@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
 import { Shell } from "../../src/shell/shell"
-import { Filesystem } from "../../src/util/filesystem"
+import { Filesystem } from "@/util/filesystem"
+import { which } from "../../src/util/which"
 
 const withShell = async (shell: string | undefined, fn: () => void | Promise<void>) => {
   const prev = process.env.SHELL
@@ -28,6 +29,36 @@ describe("shell", () => {
     }
   })
 
+  test("Shell.ps detects powershell shells", () => {
+    expect(Shell.ps("/bin/pwsh")).toBe(true)
+    expect(Shell.ps("powershell")).toBe(true)
+    expect(Shell.ps("/bin/bash")).toBe(false)
+    expect(Shell.ps("/bin/zsh")).toBe(false)
+  })
+
+  test("Shell.args returns correct flags for bash", () => {
+    const result = Shell.args("/bin/bash", "echo hello", "/tmp")
+    expect(result[0]).toBe("-l")
+    expect(result[1]).toBe("-c")
+    expect(result[result.length - 1]).toBe("/tmp")
+  })
+
+  test("Shell.args returns correct flags for zsh", () => {
+    const result = Shell.args("/bin/zsh", "echo hello", "/tmp")
+    expect(result[0]).toBe("-l")
+    expect(result[1]).toBe("-c")
+    expect(result[result.length - 1]).toBe("/tmp")
+  })
+
+  test("Shell.args returns -c for nu and fish", () => {
+    expect(Shell.args("/bin/nu", "echo hi", "/tmp")).toEqual(["-c", "echo hi"])
+    expect(Shell.args("/bin/fish", "echo hi", "/tmp")).toEqual(["-c", "echo hi"])
+  })
+
+  test("Shell.args returns /c for cmd", () => {
+    expect(Shell.args("cmd", "echo hi", "/tmp")).toEqual(["/c", "echo hi"])
+  })
+
   test("detects login shells", () => {
     expect(Shell.login("/bin/bash")).toBe(true)
     expect(Shell.login("C:/tools/pwsh.exe")).toBe(false)
@@ -37,6 +68,20 @@ describe("shell", () => {
     expect(Shell.posix("/bin/bash")).toBe(true)
     expect(Shell.posix("/bin/fish")).toBe(false)
     expect(Shell.posix("C:/tools/pwsh.exe")).toBe(false)
+  })
+
+  test("falls back when configured shell cannot be resolved", async () => {
+    await withShell(undefined, async () => {
+      const preferred = Shell.preferred()
+      const acceptable = Shell.acceptable()
+      expect(Shell.preferred("opencode-missing-shell")).toBe(preferred)
+      expect(Shell.acceptable("opencode-missing-shell")).toBe(acceptable)
+    })
+  })
+
+  test("falls back for terminal-only acceptable shells", () => {
+    expect(Shell.name(Shell.acceptable("fish"))).not.toBe("fish")
+    expect(Shell.name(Shell.acceptable("nu"))).not.toBe("nu")
   })
 
   if (process.platform === "win32") {
@@ -62,8 +107,19 @@ describe("shell", () => {
       })
     })
 
+    test("resolves bare bash to Git Bash before PATH", async () => {
+      const bash = Shell.gitbash()
+      if (!bash) return
+      expect(Shell.acceptable("bash")).toBe(bash)
+      expect(Shell.preferred("bash")).toBe(bash)
+      await withShell("bash", async () => {
+        expect(Shell.acceptable()).toBe(bash)
+        expect(Shell.preferred()).toBe(bash)
+      })
+    })
+
     test("resolves bare PowerShell shells", async () => {
-      const shell = Bun.which("pwsh") || Bun.which("powershell")
+      const shell = which("pwsh") || which("powershell")
       if (!shell) return
       await withShell(path.win32.basename(shell), async () => {
         expect(Shell.preferred()).toBe(shell)
